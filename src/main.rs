@@ -1,89 +1,77 @@
-// # OSC Tester (Rust)
-
-// This is a simple tool to test the OSC communication between a client and a server.
-
-// ## Build
-
-// ```bash
-// $ cargo build --release
-// ```
-
-// ## Usage
-
-// ### OSC Receiver
-
-// ```bash
-// $ osc-tester server
-// # Listening on 127.0.0.1:5005...
-// # [2024-02-12 10:37:42.448582] /hoge 1 2 hoge (type tags: iis)
-// # [2024-02-12 10:38:41.971990] /hoge 1 2 hoge (type tags: iis)
-// # [2024-02-12 10:39:00.811072] /hoge 1 2 hoge (type tags: iis)
-// # [2024-02-12 10:39:05.522840] /hoge 1 2.0 hoge (type tags: ifs)
-// ```
-
-// ### OSC Sender
-
-// ```bash
-// $ osc-tester send /hoge 1 2.0 hoge
-// # Sending to 127.0.0.1:5005
-// # [2024-02-12 10:39:05.522620] /hoge 1 2.0 hoge (type tags: ifs)
-// ```
-
-// ### Sample sender
-
-// ```bash
-// $ osc-tester sample
-// # Sending to 127.0.0.1:5005... (Ctrl+C to quit)
-// # [2024-02-12 10:45:16.000462] /filter 0.6610950773002804
-// # [2024-02-12 10:45:17.002817] /filter 0.8154223208829204
-// # [2024-02-12 10:45:18.004950] /filter 0.37209750414016063
-// # [2024-02-12 10:45:19.010492] /filter 0.46979363082349024
-// ```
-
 use std::env;
-// use argparse_rs::{ArgParser, ArgType};
-use clap::{Command, arg};
+use clap::{arg, command, Arg, ArgMatches, Command};
 use std::net::UdpSocket;
 use chrono::prelude::*;
 use rosc::{OscPacket, OscType};
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let cmd = command!()
+        .about("OSC Tester")
+        .subcommand(
+            Command::new("server")
+            .about("OSC Server")
+            .arg(
+                arg!(-i --ip <IP> "IP address to listen to")
+                .default_value("127.0.0.1")
+            )
+            .arg(
+                arg!(-p --port <PORT> "Port number to listen to")
+                .value_parser(clap::value_parser!(u16).range(0..65535))
+                .default_value("5005")
+            )
+        )
+        .subcommand(
+            Command::new("send")
+            .about("OSC Sender")
+            .arg(
+                arg!(-i --ip <IP> "IP address to send to")
+                .default_value("127.0.0.1")
+            )
+            .arg(
+                arg!(-p --port <PORT> "Port number to send to")
+                .value_parser(clap::value_parser!(u16).range(0..65535))
+                .default_value("5005")
+            )
+            .arg(
+                arg!(addr: <ADDR> "OSC address")
+                .required(true)
+            )
+            .arg(
+                arg!(args: [ARGS] "OSC arguments")
+                .num_args(1..)
+            )
+        )
+        .subcommand(
+            Command::new("sample")
+            .about("Sample sender")
+            .arg(
+                arg!(-i --ip <IP> "IP address to send to")
+                .default_value("127.0.0.1")
+            )
+            .arg(
+                arg!(-p --port <PORT> "Port number to send to")
+                .value_parser(clap::value_parser!(u16).range(0..65535))
+                .default_value("5005")
+            )
+            .arg(
+                arg!(addr: <ADDR> "OSC address")
+                .default_value("/filter")
+                .required(false)
+            )
+        );
 
-    if args.len() < 2 || (args[1] != "server" && args[1] != "send" && args[1] != "sample") {
-        println!("Usage: osc-tester [server|send|sample]");
-        return;
-    }
+    let matches = cmd.get_matches();
 
-    if args[1] == "server" {
-        osc_server(&[&["osc-tester server".to_owned()], &args[2..]].concat());
-    } else if args[1] == "send" {
-        osc_sender(&[&["osc-tester send".to_owned()], &args[2..]].concat());
-    } else if args[1] == "sample" {
-        osc_sample(&[&["osc-tester sample".to_owned()], &args[2..]].concat());
+    if let Some(matches) = matches.subcommand_matches("server") {
+        osc_server(matches);
+    } else if let Some(matches) = matches.subcommand_matches("send") {
+        osc_sender(matches);
+    } else if let Some(matches) = matches.subcommand_matches("sample") {
+        osc_sample(matches);
     }
 }
 
-fn osc_sample(args: &[String]) {
-    let cmd = Command::new("osc-tester sample")
-        .about("osc-tester sample")
-        .arg(
-            arg!(-i --ip <IP> "IP address to send to")
-            .default_value("127.0.0.1")
-        )
-        .arg(
-            arg!(-p --port <PORT> "Port number to send to")
-            .value_parser(clap::value_parser!(u16).range(0..65535))
-            .default_value("5005")
-        )
-        .arg(
-            arg!(addr: <ADDR> "OSC address")
-            .default_value("/filter")
-            .required(false)
-        );
-
-    let matches = cmd.get_matches_from(args.iter());
-
+fn osc_sample(matches: &ArgMatches) {
     let ip = matches.get_one::<String>("ip").unwrap();
     let port = matches.get_one::<u16>("port").unwrap();
     let addr = matches.get_one::<String>("addr").unwrap();
@@ -106,29 +94,7 @@ fn osc_sample(args: &[String]) {
 }
 
 
-fn osc_sender(args: &[String]) {
-    let cmd = Command::new("osc-tester send")
-        .about("osc-tester send")
-        .arg(
-            arg!(-i --ip <IP> "IP address to send to")
-            .default_value("127.0.0.1")
-        )
-        .arg(
-            arg!(-p --port <PORT> "Port number to send to")
-            .value_parser(clap::value_parser!(u16).range(0..65535))
-            .default_value("5005")
-        )
-        .arg(
-            arg!(addr: <ADDR> "OSC address")
-            .required(true)
-        )
-        .arg(
-            arg!(args: [ARGS] "OSC arguments")
-            .num_args(1..)
-        );
-
-    let matches = cmd.get_matches_from(args.iter());
-
+fn osc_sender(matches: &ArgMatches) {
     let ip = matches.get_one::<String>("ip").unwrap();
     let port = matches.get_one::<u16>("port").unwrap();
     let addr = matches.get_one::<String>("addr").unwrap();
@@ -160,21 +126,7 @@ fn osc_sender(args: &[String]) {
     client.send_to(&buf, format!("{}:{}", ip, port)).expect("Failed to send packet");
 }
 
-fn osc_server(args: &[String]) {
-    let cmd = Command::new("osc-tester server")
-        .about("osc-tester server")
-        .arg(
-            arg!(-i --ip <IP> "IP address to listen to")
-            .default_value("127.0.0.1")
-        )
-        .arg(
-            arg!(-p --port <PORT> "Port number to listen to")
-            .value_parser(clap::value_parser!(u16).range(0..65535))
-            .default_value("5005")
-        );
-    
-    let matches = cmd.get_matches_from(args.iter());
-
+fn osc_server(matches: &ArgMatches) {
     let ip = matches.get_one::<String>("ip").unwrap();
     let port = matches.get_one::<u16>("port").unwrap();
 
