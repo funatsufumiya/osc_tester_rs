@@ -1,5 +1,5 @@
 use std::env;
-use clap::{arg, command, Arg, ArgMatches, Command};
+use clap::{arg, command, ArgMatches, Command};
 use std::net::UdpSocket;
 use chrono::prelude::*;
 use rosc::{OscPacket, OscType};
@@ -81,7 +81,7 @@ fn osc_sample(matches: &ArgMatches) {
     // every 1sec
     loop {
         let val = rand::random::<f32>();
-        let mut client = UdpSocket::bind(format!("{}:0", ip)).expect("Failed to bind to socket");
+        let client = UdpSocket::bind(format!("{}:0", ip)).expect("Failed to bind to socket");
         let packet = rosc::OscPacket::Message(rosc::OscMessage {
             addr: addr.to_string(),
             args: vec![OscType::Float(val)],
@@ -100,30 +100,39 @@ fn osc_sender(matches: &ArgMatches) {
     let addr = matches.get_one::<String>("addr").unwrap();
     let args = matches.get_many::<String>("args").map(|vals| vals.collect::<Vec<_>>()).unwrap_or_default();
 
-    let mut client = UdpSocket::bind(format!("{}:0", ip)).expect("Failed to bind to socket");
+    let client = UdpSocket::bind(format!("{}:0", ip)).expect("Failed to bind to socket");
     
+    let osc_args: Vec<OscType> = args.iter().map(|arg| {
+        let s = arg.to_string();
+        if let Ok(int) = arg.parse::<i32>() {
+            OscType::Int(int)
+        } else if let Ok(float) = arg.parse::<f32>() {
+            OscType::Float(float)
+        } else if let Ok(double) = arg.parse::<f64>() {
+            OscType::Double(double)
+        } else if s == "true" || s == "True" {
+            OscType::Int(1)
+        } else if s == "false" || s == "False" {
+            OscType::Int(0)
+        } else {
+            OscType::String(arg.to_string())
+        }
+    }).collect();
+
     let packet = rosc::OscPacket::Message(rosc::OscMessage {
         addr: addr.to_string(),
-        args: args.iter().map(|arg| {
-            let s = arg.to_string();
-            if let Ok(int) = arg.parse::<i32>() {
-                OscType::Int(int)
-            } else if let Ok(float) = arg.parse::<f32>() {
-                OscType::Float(float)
-            } else if let Ok(double) = arg.parse::<f64>() {
-                OscType::Double(double)
-            } else if s == "true" || s == "True" {
-                OscType::Int(1)
-            } else if s == "false" || s == "False" {
-                OscType::Int(0)
-            } else {
-                OscType::String(arg.to_string())
-            }
-        }).collect(),
+        args: osc_args.clone(),
     });
 
     let buf = rosc::encoder::encode(&packet).unwrap();
     client.send_to(&buf, format!("{}:{}", ip, port)).expect("Failed to send packet");
+
+    println!("Sending to {}:{}", ip, port);
+    println!("[{}] {} {} (type tags: {})",
+        Local::now().format("%Y-%m-%d %H:%M:%S%.6f"),
+        addr,
+        args.iter().map(|arg| arg.to_string()).collect::<Vec<String>>().join(" "),
+        get_type_tags(&osc_args.iter().collect::<Vec<_>>()));
 }
 
 fn osc_server(matches: &ArgMatches) {
@@ -175,7 +184,7 @@ fn get_string(osc_type: &OscType) -> String {
 }
 
 
-fn get_type_tags(args: &[OscType]) -> String {
+fn get_type_tags(args: &Vec<&OscType>) -> String {
     args.iter().map(|arg| get_type_string(arg)).collect::<Vec<String>>().join("")
 }
 
@@ -189,7 +198,7 @@ fn handle_packet(packet: OscPacket) {
             }
             println!("[{}] {} {} (type tags: {})", time_str, msg.addr,
                 &msg.args.iter().map(|arg| get_string(arg)).collect::<Vec<String>>().join(" "),
-                get_type_tags(&msg.args));
+                get_type_tags(&msg.args.iter().collect::<Vec<_>>()));
         }
         OscPacket::Bundle(bundle) => {
             println!("Received a bundle: {:?}", bundle);
