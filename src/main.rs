@@ -81,7 +81,7 @@ fn osc_sample(matches: &ArgMatches) {
     // every 1sec
     loop {
         let val = rand::random::<f32>();
-        let client = UdpSocket::bind(format!("{}:0", ip)).expect("Failed to bind to socket");
+        let client = UdpSocket::bind(format!("0.0.0.0:0")).expect("Failed to bind to socket");
         let packet = rosc::OscPacket::Message(rosc::OscMessage {
             addr: addr.to_string(),
             args: vec![OscType::Float(val)],
