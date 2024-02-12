@@ -12,3 +12,4 @@ clap = { version = "4.5.0", features = ["cargo"] }
 # argparse-rs = "0.1.0"
 # argparse-rs = { git = "https://github.com/funatsufumiya/argparser-rs.git", branch = "master" }
 chrono = "0.4.19"
+rand = "0.8.5"

@@ -60,10 +60,51 @@ fn main() {
     } else if args[1] == "send" {
         osc_sender(&[&["osc-tester send".to_owned()], &args[2..]].concat());
     } else if args[1] == "sample" {
-        // osc_sample_sender(&args[2..]);
-        panic!("Not implemented yet");
+        osc_sample(&[&["osc-tester sample".to_owned()], &args[2..]].concat());
     }
 }
+
+fn osc_sample(args: &[String]) {
+    let cmd = Command::new("osc-tester sample")
+        .about("osc-tester sample")
+        .arg(
+            arg!(-i --ip <IP> "IP address to send to")
+            .default_value("127.0.0.1")
+        )
+        .arg(
+            arg!(-p --port <PORT> "Port number to send to")
+            .value_parser(clap::value_parser!(u16).range(0..65535))
+            .default_value("5005")
+        )
+        .arg(
+            arg!(addr: <ADDR> "OSC address")
+            .default_value("/filter")
+            .required(false)
+        );
+
+    let matches = cmd.get_matches_from(args.iter());
+
+    let ip = matches.get_one::<String>("ip").unwrap();
+    let port = matches.get_one::<u16>("port").unwrap();
+    let addr = matches.get_one::<String>("addr").unwrap();
+
+    println!("Sending to {}:{}... (Ctrl+C to quit)", ip, port);
+
+    // every 1sec
+    loop {
+        let val = rand::random::<f32>();
+        let mut client = UdpSocket::bind(format!("{}:0", ip)).expect("Failed to bind to socket");
+        let packet = rosc::OscPacket::Message(rosc::OscMessage {
+            addr: addr.to_string(),
+            args: vec![OscType::Float(val)],
+        });
+        let buf = rosc::encoder::encode(&packet).unwrap();
+        client.send_to(&buf, format!("{}:{}", ip, port)).expect("Failed to send packet");
+        println!("[{}] {} {}", Local::now().format("%Y-%m-%d %H:%M:%S%.6f"), addr, val);
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
+}
+
 
 fn osc_sender(args: &[String]) {
     let cmd = Command::new("osc-tester send")
