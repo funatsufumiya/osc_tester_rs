@@ -100,7 +100,7 @@ fn osc_sender(matches: &ArgMatches) {
     let addr = matches.get_one::<String>("addr").unwrap();
     let args = matches.get_many::<String>("args").map(|vals| vals.collect::<Vec<_>>()).unwrap_or_default();
 
-    let client = UdpSocket::bind(format!("{}:0", ip)).expect("Failed to bind to socket");
+    let client = UdpSocket::bind(format!("0.0.0.0:0")).expect("Failed to bind to socket");
     
     let osc_args: Vec<OscType> = args.iter().map(|arg| {
         let s = arg.to_string();
