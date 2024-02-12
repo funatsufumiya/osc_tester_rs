@@ -8,8 +8,8 @@ fn main() {
     let cmd = command!()
         .about("OSC Tester")
         .subcommand(
-            Command::new("server")
-            .about("OSC Server")
+            Command::new("receive")
+            .about("OSC Receiver (Server)")
             .arg(
                 arg!(-i --ip <IP> "IP address to listen to")
                 .default_value("127.0.0.1")
@@ -22,7 +22,7 @@ fn main() {
         )
         .subcommand(
             Command::new("send")
-            .about("OSC Sender")
+            .about("OSC Sender (Client)")
             .arg(
                 arg!(-i --ip <IP> "IP address to send to")
                 .default_value("127.0.0.1")
@@ -62,7 +62,7 @@ fn main() {
 
     let matches = cmd.get_matches();
 
-    if let Some(matches) = matches.subcommand_matches("server") {
+    if let Some(matches) = matches.subcommand_matches("receive") {
         osc_server(matches);
     } else if let Some(matches) = matches.subcommand_matches("send") {
         osc_sender(matches);

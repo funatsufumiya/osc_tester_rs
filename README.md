@@ -14,10 +14,10 @@ $ cargo build --release
 
 ### OSC Receiver
 
-(Check `osc-tester server -h` for options)
+(Check `osc-tester receive -h` for options)
 
 ```bash
-$ osc-tester server
+$ osc-tester receive
 # Listening on 127.0.0.1:5005...
 # [2024-02-12 10:37:42.448582] /hoge 1 2 hoge (type tags: iis)
 # [2024-02-12 10:38:41.971990] /hoge 1 2 hoge (type tags: iis)
