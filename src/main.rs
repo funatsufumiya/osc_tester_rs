@@ -56,30 +56,74 @@ fn main() {
     }
 
     if args[1] == "server" {
-        // osc_server(&args[1..]);
         osc_server(&[&["osc-tester server".to_owned()], &args[2..]].concat());
     } else if args[1] == "send" {
-        // osc_sender(&args[2..]);
-        panic!("Not implemented yet");
+        osc_sender(&[&["osc-tester send".to_owned()], &args[2..]].concat());
     } else if args[1] == "sample" {
         // osc_sample_sender(&args[2..]);
         panic!("Not implemented yet");
     }
 }
 
-// fn osc_sender(args: &[String]) {
-//     // show help with clap
-//     let mut parser = ArgParser::new("osc-tester send".into());
-//     parser.add_opt("ip", Some("127.0.0.1"), 'i', false, "IP address to send to", ArgType::Option);
-//     parser.add_opt("port", Some("5005"), 'p', false, "Port number to send to", ArgType::Option);
-//     parser.
+fn osc_sender(args: &[String]) {
+    let cmd = Command::new("osc-tester send")
+        .about("osc-tester send")
+        .arg(
+            arg!(-i --ip <IP> "IP address to send to")
+            .default_value("127.0.0.1")
+        )
+        .arg(
+            arg!(-p --port <PORT> "Port number to send to")
+            .value_parser(clap::value_parser!(u16).range(0..65535))
+            .default_value("5005")
+        )
+        .arg(
+            arg!(addr: <ADDR> "OSC address")
+            .required(true)
+        )
+        .arg(
+            arg!(args: [ARGS] "OSC arguments")
+            .num_args(1..)
+        );
+
+    let matches = cmd.get_matches_from(args.iter());
+
+    let ip = matches.get_one::<String>("ip").unwrap();
+    let port = matches.get_one::<u16>("port").unwrap();
+    let addr = matches.get_one::<String>("addr").unwrap();
+    let args = matches.get_many::<String>("args").map(|vals| vals.collect::<Vec<_>>()).unwrap_or_default();
+
+    let mut client = UdpSocket::bind(format!("{}:0", ip)).expect("Failed to bind to socket");
+    
+    let packet = rosc::OscPacket::Message(rosc::OscMessage {
+        addr: addr.to_string(),
+        args: args.iter().map(|arg| {
+            let s = arg.to_string();
+            if let Ok(int) = arg.parse::<i32>() {
+                OscType::Int(int)
+            } else if let Ok(float) = arg.parse::<f32>() {
+                OscType::Float(float)
+            } else if let Ok(double) = arg.parse::<f64>() {
+                OscType::Double(double)
+            } else if s == "true" || s == "True" {
+                OscType::Int(1)
+            } else if s == "false" || s == "False" {
+                OscType::Int(0)
+            } else {
+                OscType::String(arg.to_string())
+            }
+        }).collect(),
+    });
+
+    let buf = rosc::encoder::encode(&packet).unwrap();
+    client.send_to(&buf, format!("{}:{}", ip, port)).expect("Failed to send packet");
+}
 
 fn osc_server(args: &[String]) {
     let cmd = Command::new("osc-tester server")
-        .about("OSC server")
+        .about("osc-tester server")
         .arg(
             arg!(-i --ip <IP> "IP address to listen to")
-            .value_parser(clap::value_parser!(String))
             .default_value("127.0.0.1")
         )
         .arg(
@@ -95,7 +139,7 @@ fn osc_server(args: &[String]) {
 
     println!("Listening on {}:{}...", ip, port);
 
-    let socket = UdpSocket::bind(format!("{}:{}", ip, port)).unwrap();
+    let socket = UdpSocket::bind(format!("{}:{}", ip, port)).expect("Failed to bind to socket");
     
     let mut buf = [0u8; rosc::decoder::MTU];
     loop {
@@ -125,6 +169,18 @@ fn get_type_string(osc_type: &OscType) -> String {
     }
 }
 
+fn get_string(osc_type: &OscType) -> String {
+    match osc_type {
+        OscType::Int(i) => i.to_string(),
+        OscType::Float(f) => f.to_string(),
+        OscType::Double(d) => d.to_string(),
+        OscType::String(s) => s.to_string(),
+        OscType::Blob(b) => format!("{:?}", b),
+        OscType::Bool(b) => b.to_string(),
+        default => panic!("Unsupported type: {:?}", default),
+    }
+}
+
 
 fn get_type_tags(args: &[OscType]) -> String {
     args.iter().map(|arg| get_type_string(arg)).collect::<Vec<String>>().join("")
@@ -133,9 +189,14 @@ fn get_type_tags(args: &[OscType]) -> String {
 fn handle_packet(packet: OscPacket) {
     match packet {
         OscPacket::Message(msg) => {
-            // let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros();
             let time_str = Local::now().format("%Y-%m-%d %H:%M:%S%.6f").to_string();
-            println!("[{}] {} (type tags: {})", time_str, msg.addr, get_type_tags(&msg.args));
+            if msg.args.len() == 0 {
+                println!("[{}] {}", time_str, msg.addr);
+                return;
+            }
+            println!("[{}] {} {} (type tags: {})", time_str, msg.addr,
+                &msg.args.iter().map(|arg| get_string(arg)).collect::<Vec<String>>().join(" "),
+                get_type_tags(&msg.args));
         }
         OscPacket::Bundle(bundle) => {
             println!("Received a bundle: {:?}", bundle);
