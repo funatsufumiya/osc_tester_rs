@@ -14,7 +14,7 @@ $ cargo build --release
 
 ### OSC Receiver
 
-(Check osc-tester server -h for options)
+(Check `osc-tester server -h` for options)
 
 ```bash
 $ osc-tester server
@@ -27,7 +27,7 @@ $ osc-tester server
 
 ### OSC Sender
 
-(Check osc-tester send -h for options)
+(Check `osc-tester send -h` for options)
 
 ```bash
 $ osc-tester send /hoge 1 2.0 hoge
@@ -37,7 +37,7 @@ $ osc-tester send /hoge 1 2.0 hoge
 
 ### Sample sender
 
-(Check osc-tester sample -h for options)
+(Check `osc-tester sample -h` for options)
 
 ```bash
 $ osc-tester sample
