@@ -6,6 +6,8 @@ This is a simple tool to test the OSC communication between a client and a serve
 
 ```bash
 $ cargo build --release
+
+# or just try $ cargo run -- server
 ```
 
 ## Usage
