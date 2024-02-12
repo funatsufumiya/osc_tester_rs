@@ -10,6 +10,12 @@ $ cargo build --release
 # or just try $ cargo run -- server
 ```
 
+### Install
+
+```bash
+$ cargo install --path .
+```
+
 ## Usage
 
 ### OSC Receiver
