@@ -110,9 +110,9 @@ fn osc_sender(matches: &ArgMatches) {
             OscType::Float(float)
         } else if let Ok(double) = arg.parse::<f64>() {
             OscType::Double(double)
-        } else if s == "true" || s == "True" {
+        } else if s == "true" || s == "True" || s == "t" || s == "T" {
             OscType::Int(1)
-        } else if s == "false" || s == "False" {
+        } else if s == "false" || s == "False" || s == "f" || s == "F" {
             OscType::Int(0)
         } else {
             OscType::String(arg.to_string())
