@@ -2,15 +2,15 @@
 
 This is a simple tool to test the OSC communication between a client and a server.
 
-## Build
+## Install
+
+- from crates.io
 
 ```bash
-$ cargo build --release
-
-# or just try $ cargo run -- server
+$ cargo install osc-tester
 ```
 
-### Install
+- from source
 
 ```bash
 $ cargo install --path .
@@ -52,4 +52,12 @@ $ osc-tester sample
 # [2024-02-12 10:45:17.002817] /filter 0.8154223208829204
 # [2024-02-12 10:45:18.004950] /filter 0.37209750414016063
 # [2024-02-12 10:45:19.010492] /filter 0.46979363082349024
+```
+
+## How to build
+
+```bash
+$ cargo build --release
+
+# or just try $ cargo run -- server
 ```
