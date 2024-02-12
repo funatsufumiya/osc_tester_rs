@@ -75,12 +75,6 @@ fn main() {
 //     parser.
 
 fn osc_server(args: &[String]) {
-    // show help with clap
-    // let mut parser = ArgParser::new("osc-tester server".into());
-    // parser.add_opt("ip", Some("127.0.0.1"), 'i', false, "IP address to listen to", ArgType::Option);
-    // parser.add_opt("port", Some("5005"), 'p', false, "Port number to listen to", ArgType::Option);
-    // // parser.set_debug_print(true);
-
     let cmd = Command::new("osc-tester server")
         .about("OSC server")
         .arg(
@@ -93,20 +87,11 @@ fn osc_server(args: &[String]) {
             .value_parser(clap::value_parser!(u16).range(0..65535))
             .default_value("5005")
         );
-        // .arg(arg!(-h --help "Print help"));
-
-    let mut cmd_mut = cmd.clone();
     
     let matches = cmd.get_matches_from(args.iter());
 
     let ip = matches.get_one::<String>("ip").unwrap();
     let port = matches.get_one::<u16>("port").unwrap();
-    // let help = matches.get_flag("help");
-
-    // if help {
-    //     cmd_mut.print_help().unwrap();
-    //     return;
-    // }
 
     println!("Listening on {}:{}...", ip, port);
 
