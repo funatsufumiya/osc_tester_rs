@@ -22,7 +22,7 @@ fn main() {
             )
             // prefer ipv6 resolution
             .arg(
-                arg!(-v6 --ipv6 "Prefer IPv6 when resolving hostname")
+                arg!(--ipv6 "Prefer IPv6 when resolving hostname")
                 .default_value("false")
             )
         )
@@ -40,7 +40,7 @@ fn main() {
             )
             // prefer ipv6 resolution
             .arg(
-                arg!(-v6 --ipv6 "Prefer IPv6 when resolving hostname")
+                arg!(--ipv6 "Prefer IPv6 when resolving hostname")
                 .default_value("false")
             )
             .arg(
@@ -66,7 +66,7 @@ fn main() {
             )
             // prefer ipv6 resolution
             .arg(
-                arg!(-v6 --ipv6 "Prefer IPv6 when resolving hostname")
+                arg!(--ipv6 "Prefer IPv6 when resolving hostname")
                 .default_value("false")
             )
             .arg(
