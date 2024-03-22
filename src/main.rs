@@ -3,6 +3,7 @@ use clap::{arg, command, ArgMatches, Command};
 use std::net::UdpSocket;
 use chrono::prelude::*;
 use rosc::{OscPacket, OscType};
+use std::net::ToSocketAddrs;
 
 fn main() {
     let cmd = command!()
@@ -12,12 +13,17 @@ fn main() {
             .about("OSC Receiver (Server)")
             .arg(
                 arg!(-i --ip <IP> "IP address to listen to")
-                .default_value("127.0.0.1")
+                .default_value("0.0.0.0")
             )
             .arg(
                 arg!(-p --port <PORT> "Port number to listen to")
                 .value_parser(clap::value_parser!(u16).range(0..65535))
                 .default_value("5005")
+            )
+            // prefer ipv6 resolution
+            .arg(
+                arg!(-v6 --ipv6 "Prefer IPv6")
+                .default_value("false")
             )
         )
         .subcommand(
@@ -31,6 +37,11 @@ fn main() {
                 arg!(-p --port <PORT> "Port number to send to")
                 .value_parser(clap::value_parser!(u16).range(0..65535))
                 .default_value("5005")
+            )
+            // prefer ipv6 resolution
+            .arg(
+                arg!(-v6 --ipv6 "Prefer IPv6")
+                .default_value("false")
             )
             .arg(
                 arg!(addr: <ADDR> "OSC address")
@@ -52,6 +63,11 @@ fn main() {
                 arg!(-p --port <PORT> "Port number to send to")
                 .value_parser(clap::value_parser!(u16).range(0..65535))
                 .default_value("5005")
+            )
+            // prefer ipv6 resolution
+            .arg(
+                arg!(-v6 --ipv6 "Prefer IPv6")
+                .default_value("false")
             )
             .arg(
                 arg!(addr: <ADDR> "OSC address")
@@ -75,8 +91,28 @@ fn osc_sample(matches: &ArgMatches) {
     let ip = matches.get_one::<String>("ip").unwrap();
     let port = matches.get_one::<u16>("port").unwrap();
     let addr = matches.get_one::<String>("addr").unwrap();
+    let prefer_ipv6 = matches.get_one::<bool>("ipv6").unwrap();
 
-    println!("Sending to {}:{}... (Ctrl+C to quit)", ip, port);
+    // if addr seems not to be IP address but hostname, resolve it
+    let _ip = match format!("{}:80", ip).to_socket_addrs() {
+        Ok(mut addrs) => {
+            if let Some(_addr) = addrs.next() {
+                // check if it's ipv4, if not, use next
+                if *prefer_ipv6 && _addr.ip().is_ipv4() {
+                    addrs.next().unwrap().ip().to_string()
+                } else if !*prefer_ipv6 && _addr.ip().is_ipv6() {
+                    addrs.next().unwrap().ip().to_string()
+                } else {
+                    _addr.ip().to_string()
+                }
+            } else {
+                ip.to_string()
+            }
+        }
+        Err(_) => ip.to_string(),
+    };
+
+    println!("Sending to {}:{}... (Ctrl+C to quit)", _ip, port);
 
     // every 1sec
     loop {
@@ -87,7 +123,7 @@ fn osc_sample(matches: &ArgMatches) {
             args: vec![OscType::Float(val)],
         });
         let buf = rosc::encoder::encode(&packet).unwrap();
-        client.send_to(&buf, format!("{}:{}", ip, port)).expect("Failed to send packet");
+        client.send_to(&buf, format!("{}:{}", _ip, port)).expect("Failed to send packet");
         println!("[{}] {} {}", Local::now().format("%Y-%m-%d %H:%M:%S%.6f"), addr, val);
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
@@ -99,6 +135,7 @@ fn osc_sender(matches: &ArgMatches) {
     let port = matches.get_one::<u16>("port").unwrap();
     let addr = matches.get_one::<String>("addr").unwrap();
     let args = matches.get_many::<String>("args").map(|vals| vals.collect::<Vec<_>>()).unwrap_or_default();
+    let prefer_ipv6 = matches.get_one::<bool>("ipv6").unwrap();
 
     let client = UdpSocket::bind(format!("0.0.0.0:0")).expect("Failed to bind to socket");
     
@@ -119,15 +156,35 @@ fn osc_sender(matches: &ArgMatches) {
         }
     }).collect();
 
+    // if ip seems not to be IP address but hostname, resolve it
+    let _ip = match format!("{}:80", ip).to_socket_addrs() {
+        Ok(mut addrs) => {
+            if let Some(_addr) = addrs.next() {
+                // check if it's ipv4, if not, use next
+                if *prefer_ipv6 && _addr.ip().is_ipv4() {
+                    addrs.next().unwrap().ip().to_string()
+                } else if !*prefer_ipv6 && _addr.ip().is_ipv6() {
+                    addrs.next().unwrap().ip().to_string()
+                } else {
+                    _addr.ip().to_string()
+                }
+            } else {
+                ip.to_string()
+            }
+        }
+        Err(_) => ip.to_string(),
+    };
+
+    println!("Sending to {}:{}", _ip, port);
+
     let packet = rosc::OscPacket::Message(rosc::OscMessage {
         addr: addr.to_string(),
         args: osc_args.clone(),
     });
 
     let buf = rosc::encoder::encode(&packet).unwrap();
-    client.send_to(&buf, format!("{}:{}", ip, port)).expect("Failed to send packet");
+    client.send_to(&buf, format!("{}:{}", _ip, port)).expect("Failed to send packet");
 
-    println!("Sending to {}:{}", ip, port);
     println!("[{}] {} {} (type tags: {})",
         Local::now().format("%Y-%m-%d %H:%M:%S%.6f"),
         addr,
@@ -139,9 +196,21 @@ fn osc_server(matches: &ArgMatches) {
     let ip = matches.get_one::<String>("ip").unwrap();
     let port = matches.get_one::<u16>("port").unwrap();
 
-    println!("Listening on {}:{}...", ip, port);
+    // if addr seems not to be IP address but hostname, resolve it
+    let _ip = match format!("{}:80", ip).to_socket_addrs() {
+        Ok(mut addrs) => {
+            if let Some(_addr) = addrs.next() {
+                _addr.ip().to_string()
+            } else {
+                ip.to_string()
+            }
+        }
+        Err(_) => ip.to_string(),
+    };
 
-    let socket = UdpSocket::bind(format!("{}:{}", ip, port)).expect("Failed to bind to socket");
+    println!("Listening on {}:{}...", _ip, port);
+
+    let socket = UdpSocket::bind(format!("{}:{}", _ip, port)).expect("Failed to bind to socket");
     
     let mut buf = [0u8; rosc::decoder::MTU];
     loop {
