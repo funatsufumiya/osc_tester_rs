@@ -12,7 +12,7 @@ fn main() {
             Command::new("receive")
             .about("OSC Receiver (Server)")
             .arg(
-                arg!(-i --ip <IP> "IP address to listen to")
+                arg!(-i --ip <IP> "IP address or hostname to listen to")
                 .default_value("0.0.0.0")
             )
             .arg(
@@ -22,7 +22,7 @@ fn main() {
             )
             // prefer ipv6 resolution
             .arg(
-                arg!(-v6 --ipv6 "Prefer IPv6")
+                arg!(-v6 --ipv6 "Prefer IPv6 when resolving hostname")
                 .default_value("false")
             )
         )
@@ -30,7 +30,7 @@ fn main() {
             Command::new("send")
             .about("OSC Sender (Client)")
             .arg(
-                arg!(-i --ip <IP> "IP address to send to")
+                arg!(-i --ip <IP> "IP address or hostname to send to")
                 .default_value("127.0.0.1")
             )
             .arg(
@@ -40,7 +40,7 @@ fn main() {
             )
             // prefer ipv6 resolution
             .arg(
-                arg!(-v6 --ipv6 "Prefer IPv6")
+                arg!(-v6 --ipv6 "Prefer IPv6 when resolving hostname")
                 .default_value("false")
             )
             .arg(
@@ -56,7 +56,7 @@ fn main() {
             Command::new("sample")
             .about("Sample sender")
             .arg(
-                arg!(-i --ip <IP> "IP address to send to")
+                arg!(-i --ip <IP> "IP address or hostname to send to")
                 .default_value("127.0.0.1")
             )
             .arg(
@@ -66,7 +66,7 @@ fn main() {
             )
             // prefer ipv6 resolution
             .arg(
-                arg!(-v6 --ipv6 "Prefer IPv6")
+                arg!(-v6 --ipv6 "Prefer IPv6 when resolving hostname")
                 .default_value("false")
             )
             .arg(
