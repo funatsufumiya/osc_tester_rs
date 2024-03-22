@@ -99,9 +99,19 @@ fn osc_sample(matches: &ArgMatches) {
             if let Some(_addr) = addrs.next() {
                 // check if it's ipv4, if not, use next
                 if *prefer_ipv6 && _addr.ip().is_ipv4() {
-                    addrs.next().unwrap().ip().to_string()
+                    // addrs.next().unwrap().ip().to_string()
+                    if let Some(_addr) = addrs.next() {
+                        _addr.ip().to_string()
+                    } else {
+                        ip.to_string()
+                    }
                 } else if !*prefer_ipv6 && _addr.ip().is_ipv6() {
-                    addrs.next().unwrap().ip().to_string()
+                    // addrs.next().unwrap().ip().to_string()
+                    if let Some(_addr) = addrs.next() {
+                        _addr.ip().to_string()
+                    } else {
+                        ip.to_string()
+                    }
                 } else {
                     _addr.ip().to_string()
                 }
@@ -112,18 +122,26 @@ fn osc_sample(matches: &ArgMatches) {
         Err(_) => ip.to_string(),
     };
 
-    println!("Sending to {}:{}... (Ctrl+C to quit)", _ip, port);
+    if _ip.contains(":") {
+        println!("Sending to [{}]:{}... (Ctrl+C to quit)", _ip.to_string(), port);
+    } else {
+        println!("Sending to {}:{}... (Ctrl+C to quit)", _ip.to_string(), port);
+    }
 
     // every 1sec
     loop {
         let val = rand::random::<f32>();
-        let client = UdpSocket::bind(format!("0.0.0.0:0")).expect("Failed to bind to socket");
+        // let client = UdpSocket::bind(format!("0.0.0.0:0")).expect("Failed to bind to socket");
+        // if ip is ipv6, bind to ipv6
+        let client = UdpSocket::bind(if _ip.contains(":") { "[::]:0" } else { "0.0.0.0:0" }).expect("Failed to bind to socket");
         let packet = rosc::OscPacket::Message(rosc::OscMessage {
             addr: addr.to_string(),
             args: vec![OscType::Float(val)],
         });
         let buf = rosc::encoder::encode(&packet).unwrap();
-        client.send_to(&buf, format!("{}:{}", _ip, port)).expect("Failed to send packet");
+        // client.send_to(&buf, format!("{}:{}", _ip, port)).expect("Failed to send packet");
+        // if ipv6, wrap with square brackets
+        client.send_to(&buf, format!("{}:{}", if _ip.contains(":") { format!("[{}]", _ip) } else { _ip.to_string() }, port)).expect("Failed to send packet");
         println!("[{}] {} {}", Local::now().format("%Y-%m-%d %H:%M:%S%.6f"), addr, val);
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
@@ -137,8 +155,39 @@ fn osc_sender(matches: &ArgMatches) {
     let args = matches.get_many::<String>("args").map(|vals| vals.collect::<Vec<_>>()).unwrap_or_default();
     let prefer_ipv6 = matches.get_one::<bool>("ipv6").unwrap();
 
-    let client = UdpSocket::bind(format!("0.0.0.0:0")).expect("Failed to bind to socket");
-    
+    // if ip seems not to be IP address but hostname, resolve it
+    let _ip = match format!("{}:80", ip).to_socket_addrs() {
+        Ok(mut addrs) => {
+            if let Some(_addr) = addrs.next() {
+                // check if it's ipv4, if not, use next
+                if *prefer_ipv6 && _addr.ip().is_ipv4() {
+                    // addrs.next().unwrap().ip().to_string()
+                    if let Some(_addr) = addrs.next() {
+                        _addr.ip().to_string()
+                    } else {
+                        ip.to_string()
+                    }
+                } else if !*prefer_ipv6 && _addr.ip().is_ipv6() {
+                    // addrs.next().unwrap().ip().to_string()
+                    if let Some(_addr) = addrs.next() {
+                        _addr.ip().to_string()
+                    } else {
+                        ip.to_string()
+                    }
+                } else {
+                    _addr.ip().to_string()
+                }
+            } else {
+                ip.to_string()
+            }
+        }
+        Err(_) => ip.to_string(),
+    };
+
+    // let client = UdpSocket::bind(format!("0.0.0.0:0")).expect("Failed to bind to socket");
+    // if ip is ipv6, bind to ipv6
+    let client = UdpSocket::bind(if _ip.contains(":") { "[::]:0" } else { "0.0.0.0:0" }).expect("Failed to bind to socket");
+
     let osc_args: Vec<OscType> = args.iter().map(|arg| {
         let s = arg.to_string();
         if let Ok(int) = arg.parse::<i32>() {
@@ -156,7 +205,41 @@ fn osc_sender(matches: &ArgMatches) {
         }
     }).collect();
 
-    // if ip seems not to be IP address but hostname, resolve it
+    if _ip.contains(":") {
+        println!("Sending to [{}]:{}", _ip, port);
+    } else {
+        println!("Sending to {}:{}", _ip, port);
+    }
+
+    let packet = rosc::OscPacket::Message(rosc::OscMessage {
+        addr: addr.to_string(),
+        args: osc_args.clone(),
+    });
+
+    let buf = rosc::encoder::encode(&packet).unwrap();
+    // if ipv6, wrap with square brackets
+    client.send_to(&buf, format!("{}:{}", if _ip.contains(":") { format!("[{}]", _ip) } else { _ip }, port)).expect("Failed to send packet");
+
+    println!("[{}] {} {} (type tags: {})",
+        Local::now().format("%Y-%m-%d %H:%M:%S%.6f"),
+        addr,
+        args.iter().map(|arg| arg.to_string()).collect::<Vec<String>>().join(" "),
+        get_type_tags(&osc_args.iter().collect::<Vec<_>>()));
+}
+
+fn osc_server(matches: &ArgMatches) {
+    let ip = matches.get_one::<String>("ip").unwrap();
+    let port = matches.get_one::<u16>("port").unwrap();
+    let prefer_ipv6 = matches.get_one::<bool>("ipv6").unwrap();
+
+    // if prefer_ipv6 is true, use [::] when ip is 0.0.0.0
+    let ip = if ip == "0.0.0.0" && *prefer_ipv6 {
+        "::".to_string()
+    } else {
+        ip.to_string()
+    };
+
+    // if addr seems not to be IP address but hostname, resolve it
     let _ip = match format!("{}:80", ip).to_socket_addrs() {
         Ok(mut addrs) => {
             if let Some(_addr) = addrs.next() {
@@ -175,42 +258,15 @@ fn osc_sender(matches: &ArgMatches) {
         Err(_) => ip.to_string(),
     };
 
-    println!("Sending to {}:{}", _ip, port);
+    if _ip.contains(":") {
+        println!("Listening on [{}]:{}...", _ip, port);
+    } else {
+        println!("Listening on {}:{}...", _ip, port);
+    }
 
-    let packet = rosc::OscPacket::Message(rosc::OscMessage {
-        addr: addr.to_string(),
-        args: osc_args.clone(),
-    });
-
-    let buf = rosc::encoder::encode(&packet).unwrap();
-    client.send_to(&buf, format!("{}:{}", _ip, port)).expect("Failed to send packet");
-
-    println!("[{}] {} {} (type tags: {})",
-        Local::now().format("%Y-%m-%d %H:%M:%S%.6f"),
-        addr,
-        args.iter().map(|arg| arg.to_string()).collect::<Vec<String>>().join(" "),
-        get_type_tags(&osc_args.iter().collect::<Vec<_>>()));
-}
-
-fn osc_server(matches: &ArgMatches) {
-    let ip = matches.get_one::<String>("ip").unwrap();
-    let port = matches.get_one::<u16>("port").unwrap();
-
-    // if addr seems not to be IP address but hostname, resolve it
-    let _ip = match format!("{}:80", ip).to_socket_addrs() {
-        Ok(mut addrs) => {
-            if let Some(_addr) = addrs.next() {
-                _addr.ip().to_string()
-            } else {
-                ip.to_string()
-            }
-        }
-        Err(_) => ip.to_string(),
-    };
-
-    println!("Listening on {}:{}...", _ip, port);
-
-    let socket = UdpSocket::bind(format!("{}:{}", _ip, port)).expect("Failed to bind to socket");
+    // let socket = UdpSocket::bind(format!("{}:{}", _ip, port)).expect("Failed to bind to socket");
+    // if ipv6, wrap with square brackets
+    let socket = UdpSocket::bind(format!("{}:{}", if _ip.contains(":") { format!("[{}]", _ip) } else { _ip }, port)).expect("Failed to bind to socket");
     
     let mut buf = [0u8; rosc::decoder::MTU];
     loop {
