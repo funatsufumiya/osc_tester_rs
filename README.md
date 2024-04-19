@@ -1,7 +1,6 @@
 # OSC Tester (Rust)
 
 [![Crates.io](https://img.shields.io/crates/v/osc-tester)](https://crates.io/crates/osc-tester)
-[![Docs.rs](https://docs.rs/osc-tester/badge.svg)](https://docs.rs/osc-tester)
 [![License](https://img.shields.io/crates/l/osc-tester)](LICENSE)
 
 This is a simple tool to test the OSC communication between a client and a server.
