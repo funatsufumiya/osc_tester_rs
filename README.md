@@ -64,3 +64,7 @@ $ cargo build --release
 
 # or just try $ cargo run -- server
 ```
+
+## License
+
+WTFPL or 0BSD
