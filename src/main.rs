@@ -288,11 +288,11 @@ fn get_type_string(osc_type: &OscType) -> String {
     match osc_type {
         OscType::Int(_) => "i".to_string(),
         OscType::Float(_) => "f".to_string(),
-        OscType::Double(_) => "f".to_string(),
+        OscType::Double(_) => "d".to_string(),
         OscType::String(_) => "s".to_string(),
         OscType::Blob(_) => "b".to_string(),
         OscType::Bool(_) => "i".to_string(),
-        OscType::Long(_) => "i".to_string(), // WORKAROUND for long
+        OscType::Long(_) => "h".to_string(),
         default => panic!("Unsupported type: {:?}", default),
     }
 }
