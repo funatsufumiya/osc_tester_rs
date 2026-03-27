@@ -292,6 +292,7 @@ fn get_type_string(osc_type: &OscType) -> String {
         OscType::String(_) => "s".to_string(),
         OscType::Blob(_) => "b".to_string(),
         OscType::Bool(_) => "i".to_string(),
+        OscType::Long(_) => "i".to_string(), // WORKAROUND for long
         default => panic!("Unsupported type: {:?}", default),
     }
 }
@@ -304,6 +305,7 @@ fn get_string(osc_type: &OscType) -> String {
         OscType::String(s) => s.to_string(),
         OscType::Blob(b) => format!("{:?}", b),
         OscType::Bool(b) => b.to_string(),
+        OscType::Long(l) => l.to_string(),
         default => panic!("Unsupported type: {:?}", default),
     }
 }
